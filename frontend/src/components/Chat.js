@@ -1,6 +1,5 @@
-// src/components/Chat.js
-import React, { useState } from 'react';
-import { Box, TextField, IconButton } from '@mui/material';
+import React, { useState, useRef, useEffect } from 'react';
+import { Box, TextField, IconButton, Avatar, Typography, Divider } from '@mui/material';
 import SendIcon from '@mui/icons-material/Send';
 import ChatBubble from './ChatBubble';
 import TypingBubble from './TypingBubble';
@@ -15,9 +14,17 @@ const Chat = () => {
   ]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const chatEndRef = useRef(null);
 
-  // Adjust the URL if your backend is running elsewhere.
   const backendUrl = 'http://localhost:8000/api/chat';
+
+  const scrollToBottom = () => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages, loading]);
 
   const sendMessage = async () => {
     if (!input.trim()) return;
@@ -62,19 +69,28 @@ const Chat = () => {
       flexDirection="column"
       height="90vh"
       sx={{
-        maxWidth: 480,       // Portrait-friendly width
-        margin: '0 auto',    // Center horizontally
-        py: 4,               // Vertical padding
-        px: 2,               // Horizontal padding
+        maxWidth: 480,
+        margin: '0 auto',
+        py: 4,
+        px: 2,
       }}
     >
+      {/* Header with avatar and name */}
+      <Box display="flex" alignItems="center" mb={2}>
+        <Avatar alt="Assistant" src="https://i.pravatar.cc/150?img=47" />
+        <Typography variant="h6" ml={2}>CalBook</Typography>
+      </Box>
+      <Divider />
+
       {/* Chat messages container */}
       <Box flex={1} overflow="auto" mb={2} sx={{ py: 2 }}>
         {messages.map((msg, index) => (
           <ChatBubble key={index} message={msg.content} role={msg.role} />
         ))}
         {loading && <TypingBubble />}
+        <div ref={chatEndRef} />
       </Box>
+
       {/* Message input area */}
       <Box display="flex">
         <TextField

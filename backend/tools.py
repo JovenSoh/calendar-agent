@@ -5,17 +5,13 @@ tools = [
         "type": "function",
         "function": {
             "name": "book_event",
-            "description": "Book a new event using Cal.com's API. Requires start, end, responses (with attendee details), timeZone, language.",
+            "description": "Book a new event using Cal.com's API. Requires start, responses, timeZone, language.",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "start": {
                         "type": "string",
                         "description": "Start time of the event in ISO format, e.g. 2023-05-24T13:00:00.000Z."
-                    },
-                    "end": {
-                        "type": "string",
-                        "description": "End time of the event in ISO format, e.g. 2023-05-24T13:30:00.000Z."
                     },
                     "responses": {
                         "type": "object",
@@ -27,10 +23,6 @@ tools = [
                             "email": {
                                 "type": "string",
                                 "description": "Attendee email address."
-                            },
-                            "smsReminderNumber": {
-                                "type": ["number", "null"],
-                                "description": "SMS reminder number (or null if not applicable)."
                             },
                             "location": {
                                 "type": "object",
@@ -48,7 +40,7 @@ tools = [
                                 "additionalProperties": False
                             }
                         },
-                        "required": ["name", "email", "smsReminderNumber", "location"],
+                        "required": ["name", "email", "location"],
                         "additionalProperties": False
                     },
                     "timeZone": {
@@ -60,7 +52,7 @@ tools = [
                         "description": "Language of the attendee, e.g. 'en'."
                     },
                 },
-                "required": ["start", "end", "responses", "timeZone", "language"],
+                "required": ["start", "responses", "timeZone", "language"],
                 "additionalProperties": False
             },
             "strict": True

@@ -8,6 +8,7 @@ from pydantic import BaseModel
 from dotenv import load_dotenv
 import logging
 from typing import List
+from datetime import datetime, timedelta
 
 # Import tool schemas from tools.py
 from tools import tools
@@ -31,11 +32,19 @@ client = AsyncOpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 # Cal.com Integration Functions
 # -------------------------------------------------------------------
 
-def book_event(start: str, end: str, responses: dict, timeZone: str,
+def book_event(start: str, responses: dict, timeZone: str,
                language: str) -> str:
     """
     Book a new event by calling Cal.com's bookings API.
     """
+    # Parse the start time string
+    start_dt = datetime.fromisoformat(start)
+
+    # Add 15 minutes
+    end_dt = start_dt + timedelta(minutes=15)
+
+    # Convert back to ISO 8601 string
+    end = end_dt.isoformat()
     url = f"{CAL_BASE_URL}/v1/bookings"
     responses["smsReminderNumber"] = ""
     payload = {
@@ -135,7 +144,6 @@ def call_function(name, args):
         if name == "book_event":
             return book_event(
                 start=args["start"],
-                end=args["end"],
                 responses=args["responses"],
                 timeZone=args["timeZone"],
                 language=args["language"],
