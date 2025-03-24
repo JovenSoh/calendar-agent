@@ -8,7 +8,7 @@ from pydantic import BaseModel
 from dotenv import load_dotenv
 import logging
 from typing import List
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 # Import tool schemas from tools.py
 from tools import tools
@@ -37,14 +37,14 @@ def book_event(start: str, responses: dict, timeZone: str,
     """
     Book a new event by calling Cal.com's bookings API.
     """
-    # Parse the start time string
-    start_dt = datetime.fromisoformat(start)
-
-    # Add 15 minutes
+    start_dt = datetime(2025, 3, 25, 13, 0, tzinfo=timezone.utc)
     end_dt = start_dt + timedelta(minutes=15)
 
+    start = start_dt.isoformat().replace('+00:00', 'Z')
+    end = end_dt.isoformat().replace('+00:00', 'Z')
+
     # Convert back to ISO 8601 string
-    end = end_dt.isoformat()
+    end = str(end_dt.isoformat())
     url = f"{CAL_BASE_URL}/v1/bookings"
     responses["smsReminderNumber"] = ""
     payload = {
@@ -99,38 +99,44 @@ def cancel_event(event_time: str, email: str = "user@example.com") -> str:
       3. Call the DELETE cancellation endpoint.
     """
     # Step 1: Retrieve the user's events
-    
+
     events = list_events()
     target = None
-    
-    # Step 2: Identify the event by matching both start time and email.
+
+# Step 2: Identify the event by matching both start time and email.
     for event in events:
         start_time_iso = event.get("start", "")
         if start_time_iso:
-            # Extract the HH:MM portion from the ISO string.
-            hhmm = start_time_iso.split("T")[-1][:5]
+            logger.info(start_time_iso)
+            logger.info(event_time)
             # Retrieve the email from bookingFieldsResponses, or from attendees if not available.
-            event_email = None
+            emails = set()
             if "bookingFieldsResponses" in event and event["bookingFieldsResponses"].get("email"):
-                event_email = event["bookingFieldsResponses"].get("email")
-            elif "attendees" in event and event["attendees"]:
-                event_email = event["attendees"][0].get("email")
-            
-            # Check if both the time and the email match.
-            if hhmm == event_time and event_email and event_email.lower() == email.lower():
+                emails.add(event["bookingFieldsResponses"]["email"])
+            if "attendees" in event:
+                for a in event["attendees"]:
+                    if a.get("email"):
+                        emails.add(a["email"])
+
+            if "hosts" in event:
+                for h in event["hosts"]:
+                    if h.get("email"):
+                        emails.add(h["email"])
+            if start_time_iso == event_time and email.lower() in (e.lower() for e in emails):
                 target = event
                 break
 
+
     if not target:
         return f"No event found at {event_time} for {email}."
-    
+
     # Step 3: Call the cancellation endpoint.
     booking_id = target.get("id")
     cancel_url = f"{CAL_BASE_URL}/bookings/{booking_id}/cancel"
     # API key is passed as a query parameter
     params = {"apiKey": CAL_API_KEY}
     delete_response = requests.delete(cancel_url, params=params)
-    
+
     if delete_response.status_code in (200, 204):
         return f"Event at {event_time} canceled successfully."
     else:
@@ -179,7 +185,6 @@ class ChatMessage(BaseModel):
 
 class ChatRequest(BaseModel):
     messages: List[ChatMessage]
-
 @app.post("/api/chat")
 async def chat_endpoint(request: ChatRequest):
     # Extract the incoming messages as a list of dicts.
@@ -188,7 +193,7 @@ async def chat_endpoint(request: ChatRequest):
     if not messages or messages[0]["role"] != "system":
         system_prompt = {
             "role": "system",
-            "content": "Please reply in plain text only. Do not include any formatting, markdown, or code blocks in your output. It is the year 2025."
+            "content": "Please reply in plain text only. Do not include any formatting, markdown, or code blocks in your output. It is the year 2025. Clarify timezone with users, convert to UTC for use with tools."
         }
         messages.insert(0, system_prompt)
     try:
@@ -202,7 +207,7 @@ async def chat_endpoint(request: ChatRequest):
         message = completion.choices[0].message
         messages.append(message)
         logger.info("GPT response:\n%s", message.model_dump_json(indent=2))
-        
+
         if hasattr(message, "tool_calls") and message.tool_calls:
             for tool_call in message.tool_calls:
                 args = json.loads(tool_call.function.arguments)
@@ -232,3 +237,4 @@ async def chat_endpoint(request: ChatRequest):
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("app:app", host="0.0.0.0", port=PORT, reload=True)
+                                                                              
